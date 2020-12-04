@@ -80,3 +80,36 @@ body {
     float: right;
     background: transparent;
 }
+
+#detail {
+    display: none;
+}
+
+#scoreChart {
+    background-color: #eceff1;
+    border-radius: 4px;
+    padding: 4px;
+    box-shadow: inset -8px 0 10px -6px #ACD0E6;
+}
+
+.bar {
+    fill: #006064;
+}
+
+.bar-text {
+    font-size: 10px;
+    fill: #fbfbfb;
+}
+
+.uni-score {
+    text-align: right;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 12px;
+    padding-bottom: 0;
+}
+
+.uni-name {
+    text-align: center;
+    padding: 12px;
+}

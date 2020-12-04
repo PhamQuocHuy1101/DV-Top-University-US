@@ -33,7 +33,7 @@ var __sortOptions = [{
         rank: 'scores_resources_rank'
     }
 ];
-const defaultRange = [0, 800];
+const defaultRange = [0, 100];
 var __range = defaultRange;
 
 /*** d3 control object ***/
@@ -160,24 +160,95 @@ dispatch.on('load.map', async function createChart() {
         event.stopPropagation();
         d3.selectAll('circle').transition().style("fill", null);
         d3.select(this).transition().style("fill", "#C10723");
-        dispatch.call('selectDetail', this, {
-            name: d.name,
-            rank: d.rank_order,
-            score: d.scores_overall
-        })
+        dispatch.call('selectDetail', this, d)
     }
 });
 
 dispatch.on("load.content", function createContent() {
     var content = d3.select("#detail")
-    content.append('div')
+        // content.append('div')
+    var cols = {
+        // 'scores_overall': 'Overall',
+        'scores_engagement': 'Engagement',
+        'scores_environment': 'Environment',
+        'scores_outcomes': 'Outcomes',
+        'scores_resources': 'Resources'
+    };
+
+    var scoreChart = content.select('#scoreChart')
+        .select('svg')
+        .attr('width', 340)
+        .attr('height', 200)
+
+    var margin = 80;
+    var width = scoreChart.attr('width') - margin;
+    var height = scoreChart.attr('height') - margin;
+
+    var xScale = d3.scaleLinear().range([0, width]).domain([0, 50]);
+    var yScale = d3.scaleBand().rangeRound([height, 0]).domain(Object.keys(cols)).padding(0.2);
+
+    // scoreChart.select('g').remove();
+    var g = scoreChart.append("g")
+    g.append("g")
+        .attr("transform", `translate(65,${margin / 4})`)
+        .call(d3.axisLeft(yScale).tickFormat(d => {
+            return cols[d]
+        }))
+        .append("text")
+        .attr("y", height)
+        .attr("x", width - margin)
+        .attr("text-anchor", "end")
+        .attr("stroke", "black")
+
+    g.append("g")
+        .attr("transform", `translate(65, ${height + margin /4})`)
+        .call(d3.axisBottom(xScale).ticks(7))
+        .append("text")
+        // .attr("x", 6)
+        .attr("dx", "16em")
+        .attr("dy", "4em")
+        .attr("text-anchor", "end")
+        .attr("stroke", "black")
+        .text('Score')
 
     dispatch.on('selectDetail.detail', function(text) {
-        content.html(`
-                <div> Name: ${text.name} </div>
-                <div class="rank"> Rank : ${text.rank}</div>
-                <div> Score: ${text.score} </div>
-        `)
+        content.style('display', 'block');
+        content.select('#name').text(text.name)
+        content.select("#totalScore").text(`Total score: ${text.scores_overall}`)
+        console.log("text", text)
+        var rows = Object.keys(cols).map(el => {
+            return {
+                key: el,
+                value: text[el]
+            }
+        });
+        var bars = g.selectAll(".bar")
+            .data(rows)
+            .join("rect")
+            .attr("class", "bar")
+            .attr("x", '66')
+            .attr('y', d => yScale(d.key) + margin / 4)
+            .attr("height", yScale.bandwidth())
+            .attr("opacity", 0.8)
+            .transition()
+            .duration(700)
+            .attr("width", d => xScale(d.value))
+            .attr("opacity", 1)
+
+        g.selectAll('.bar-text')
+            .data(rows)
+            .join('text')
+            .attr('class', 'bar-text')
+            .attr('x', d => 66 + xScale(d.value))
+            .attr('dx', "-1em")
+            .attr('y', d => yScale(d.key) + margin / 4)
+            .attr('dy', '1.5em')
+            .attr("text-anchor", "end")
+            .text(d => d.value)
+    });
+
+    dispatch.on('reset.scoreChart', function() {
+        content.style('display', 'none');
     })
 });
 
