@@ -35,7 +35,7 @@ var __sortOptions = [{
 ];
 const defaultRange = [0, 100];
 var __range = defaultRange;
-
+var __selectedItem = {};
 /*** d3 control object ***/
 var path = d3.geoPath();
 var color = d3.scaleSequential(d3.interpolatePuBu).domain([0, 1]);
@@ -47,6 +47,11 @@ var projection = d3.geoAlbersUsa().scale(1300).translate([width / 2, height / 2]
 async function init() {
     us = await d3.json("../static/data/states-albers-10m.json");
     data = await d3.csv("../static/data/usUni.csv")
+}
+
+function getFilterData() {
+    var sortBy = __sortOpts.rank;
+    return data.filter(el => Number(el[sortBy]) >= __range[0] && Number(el[sortBy]) <= __range[1]);
 }
 
 dispatch.on('load.map', async function createChart() {
@@ -80,13 +85,13 @@ dispatch.on('load.map', async function createChart() {
     var uniSvg = g.append("g")
         .attr("text-anchor", "middle")
         .attr("id", "uniLocation")
-    renderLocation(data)
+
+    var filterData = getFilterData();
+    renderLocation(filterData)
     svg.call(zoom);
 
     dispatch.on("stateChange.range", function() {
-        console.log("statechange")
-        var sortBy = __sortOpts.rank;
-        var filterData = data.filter(el => Number(el[sortBy]) >= __range[0] && Number(el[sortBy]) <= __range[1])
+        var filterData = getFilterData();
         renderLocation(filterData);
     })
 
@@ -107,7 +112,7 @@ dispatch.on('load.map', async function createChart() {
             .append('circle')
             .on('click', selectUni)
             .attr("r", function(d) {
-                return 10 * getRange(d);
+                return 12 * getRange(d) + 3;
             })
             .attr("fill", function(d) {
                 return color(getRange(d));
@@ -115,7 +120,8 @@ dispatch.on('load.map', async function createChart() {
             .attr('stroke', 'white')
             .attr('stroke-width', 0.2)
             .append("title")
-            .text(d => `${d.name}`)
+            .text(d => `${d.name}
+            - Rank: ${d[__sortOpts.rank]}`)
 
         uniItem.exit().remove();
     };
@@ -156,17 +162,16 @@ dispatch.on('load.map', async function createChart() {
     }
 
     function selectUni(event, d) {
-        console.log(d)
         event.stopPropagation();
         d3.selectAll('circle').transition().style("fill", null);
         d3.select(this).transition().style("fill", "#C10723");
-        dispatch.call('selectDetail', this, d)
+        __selectedItem = {...d };
+        dispatch.call('selectDetail', this)
     }
 });
 
 dispatch.on("load.content", function createContent() {
     var content = d3.select("#detail")
-        // content.append('div')
     var cols = {
         // 'scores_overall': 'Overall',
         'scores_engagement': 'Engagement',
@@ -187,7 +192,6 @@ dispatch.on("load.content", function createContent() {
     var xScale = d3.scaleLinear().range([0, width]).domain([0, 50]);
     var yScale = d3.scaleBand().rangeRound([height, 0]).domain(Object.keys(cols)).padding(0.2);
 
-    // scoreChart.select('g').remove();
     var g = scoreChart.append("g")
     g.append("g")
         .attr("transform", `translate(65,${margin / 4})`)
@@ -211,15 +215,15 @@ dispatch.on("load.content", function createContent() {
         .attr("stroke", "black")
         .text('Score')
 
-    dispatch.on('selectDetail.detail', function(text) {
+    dispatch.on('selectDetail.detail', function() {
         content.style('display', 'block');
-        content.select('#name').text(text.name)
-        content.select("#totalScore").text(`Total score: ${text.scores_overall}`)
-        console.log("text", text)
+        content.select('#name').text(__selectedItem.name)
+        content.select('#rank').text(`Rank ${__selectedItem[__sortOpts.rank]}`)
+        content.select("#totalScore").text(`Total score: ${__selectedItem.scores_overall}`)
         var rows = Object.keys(cols).map(el => {
             return {
                 key: el,
-                value: text[el]
+                value: __selectedItem[el]
             }
         });
         var bars = g.selectAll(".bar")
@@ -248,6 +252,9 @@ dispatch.on("load.content", function createContent() {
     });
 
     dispatch.on('reset.scoreChart', function() {
+        content.style('display', 'none');
+    })
+    dispatch.on('stateChange.scoreChart', function() {
         content.style('display', 'none');
     })
 });
